@@ -1,0 +1,12 @@
+[submodule "toml-test"]
+	path = toml-test
+	url = http://github.com/BurntSushi/toml-test
+[submodule "another-toml-cpp"]
+	path = another-toml-cpp
+	url = http://github.com/cyanskies/another-toml-cpp
+[submodule "SimpleJSON"]
+	path = SimpleJSON
+	url = https://github.com/nbsdx/SimpleJSON
+[submodule "jute"]
+	path = jute
+	url = https://github.com/amir-s/jute
