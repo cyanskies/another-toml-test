@@ -1,7 +1,5 @@
-#include <array>
-#include <fstream>
+﻿#include <array>
 #include <iostream>
-#include <sstream>
 #include <string_view>
 
 #include "json.hpp"
@@ -13,20 +11,39 @@ namespace toml = another_toml;
 
 void stream_to_json(std::ostream&, const toml::node&);
 
+constexpr auto str = u8R"(
+       ['a']
+       [a.'b']
+       [a.'b'.c]
+       answer = 42
+)"sv;
+
 int main()
 {
-	auto example_file = std::ifstream{ "example.toml" };
-	auto toml_node = toml::parse(example_file);
-
-	auto stream = std::ostringstream{};
-	stream_to_json(stream, toml_node);
-	auto str = stream.str();
-
-	return EXIT_SUCCESS;
+	try
+	{
+	#if 0
+		auto toml_node = toml::parse(std::cin);
+	#elif 0
+		auto toml_node = toml::parse(str, toml::no_throw);
+		if (!toml_node.good())
+			return EXIT_FAILURE;
+	#else
+		auto beg = reinterpret_cast<const char*>(&*str.begin());
+		auto end = beg + str.length();
+		auto toml_node = toml::parse({beg, end});
+	#endif
+		stream_to_json(std::cout, toml_node);
+		return EXIT_SUCCESS;
+	}
+	catch (...)
+	{
+		return EXIT_FAILURE;
+	}
 }
 
 constexpr auto value_strings = std::array{
-	"string"sv, "integer"sv, "float"sv, "boolean"sv,
+	"string"sv, "integer"sv, "float"sv, "bool"sv,
 	"datetime"sv, "datetime-local"sv, "date-local"sv,
 	"time-local"sv, "unknown"sv, "bad"sv, "out-of-range"sv
 };

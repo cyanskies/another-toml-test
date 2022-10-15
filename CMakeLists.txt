@@ -3,10 +3,17 @@ add_subdirectory(another-toml-cpp)
 
 project(toml-test VERSION 0.1)
 
-add_executable(toml-test encoder_decoder.cpp ./jute/jute.cpp)
-set_property(TARGET toml-test PROPERTY CXX_STANDARD 20)
+add_executable(toml-test-encoder encoder.cpp)
+set_property(TARGET toml-test-encoder PROPERTY CXX_STANDARD 20)
 
-target_include_directories(toml-test PUBLIC ./jute ./SimpleJSON)
-target_link_libraries(toml-test another-toml-cpp)
+target_include_directories(toml-test-encoder PUBLIC ./SimpleJSON)
+target_link_libraries(toml-test-encoder another-toml-cpp)
 
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ortho)
+add_executable(toml-test-decoder decoder.cpp)
+set_property(TARGET toml-test-decoder PROPERTY CXX_STANDARD 20)
+
+target_include_directories(toml-test-decoder PUBLIC ./SimpleJSON)
+target_link_libraries(toml-test-decoder another-toml-cpp)
+
+
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT toml-test-encoder)
