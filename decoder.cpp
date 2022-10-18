@@ -12,17 +12,22 @@ namespace toml = another_toml;
 void stream_to_json(std::ostream&, const toml::node&);
 
 constexpr auto str = u8R"(
-       ['a']
-       [a.'b']
-       [a.'b'.c]
-       answer = 42
+[a.b.c]
+       [a."b.c"]
+       [a.'d.e']
+       [a.' x ']
+       [ d.e.f ]
+       [ g . h . i ]
+       [ j . "ʞ" . 'l' ]
+
+       [x.1.2]
 )"sv;
 
 int main()
 {
 	try
 	{
-	#if 0
+	#if 1
 		auto toml_node = toml::parse(std::cin);
 	#elif 0
 		auto toml_node = toml::parse(str, toml::no_throw);
@@ -56,6 +61,39 @@ constexpr std::string_view value_to_string(const toml::value_type v)
 
 json::JSON stream_array(const toml::node&);
 void stream_table(json::JSON&, const toml::node&);
+
+std::string json_escape_string(std::string s)
+{
+	auto pos = std::size_t{};
+	while (pos < size(s))
+	{
+		switch (s[pos])
+		{
+		case '\"':
+			s.replace(pos++, 1, "\\\"");
+			break;
+		case '\b':
+			s.replace(pos++, 1, "\\b");
+			break;
+		case '\f':
+			s.replace(pos++, 1, "\\f");
+			break;
+		case '\n':
+			s.replace(pos++, 1, "\\n");
+			break;
+		case '\t':
+			s.replace(pos++, 1, "\\t");
+			break;
+		case '\\':
+			s.replace(pos++, 1, "\\\\");
+			break;
+		}
+
+		++pos;
+	}
+
+	return s;
+}
 
 json::JSON stream_value(const toml::node& n)
 {
@@ -97,17 +135,17 @@ void stream_table(json::JSON& json, const toml::node& n)
 		{
 			auto tab = json::Object();
 			stream_table(tab, node);
-			json[node.as_string()] = tab;
+			json[json_escape_string(node.as_string())] = tab;
 		}
 		else if(node.key())
 		{
 			auto val = stream_value(node.get_child());
-			json[node.as_string()] = val;
+			json[json_escape_string(node.as_string())] = val;
 		}
 		else
 		{
 			assert(node.array_table());
-			json::JSON& arr = json[node.as_string()];
+			json::JSON& arr = json[json_escape_string(node.as_string())];
 			for (const auto& arr_tab : node)
 			{
 				auto tab = json::Object();
