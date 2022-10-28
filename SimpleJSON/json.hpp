@@ -501,35 +501,23 @@ namespace {
     JSON parse_string( const string &str, size_t &offset ) {
         JSON String;
         string val;
-        for( char c = str[++offset]; c != '\"' ; c = str[++offset] ) {
-            if( c == '\\' ) {
-                switch( str[ ++offset ] ) {
-                case '\"': val += '\"'; break;
-                case '\\': val += '\\'; break;
-                case '/' : val += '/' ; break;
-                case 'b' : val += '\b'; break;
-                case 'f' : val += '\f'; break;
-                case 'n' : val += '\n'; break;
-                case 'r' : val += '\r'; break;
-                case 't' : val += '\t'; break;
-                case 'u' : {
-                    val += "\\u" ;
-                    for( unsigned i = 1; i <= 4; ++i ) {
-                        c = str[offset+i];
-                        if( (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') )
-                            val += c;
-                        else {
-                            std::cerr << "ERROR: String: Expected hex character in unicode escape, found '" << c << "'\n";
-                            return std::move( JSON::Make( JSON::Class::String ) );
-                        }
-                    }
-                    offset += 4;
-                } break;
-                default  : val += '\\'; break;
-                }
+        while (str[++offset] != '\"')
+        {
+            if (str[offset] == '\\' &&
+                str[offset + 1] == '\\')
+
+            {
+                val += "\\\\";
+                ++offset;
+            }
+            else if (str[offset] == '\\' &&
+                str[offset + 1] == '\"')
+            {
+                val += "\\\"";
+                ++offset;
             }
             else
-                val += c;
+                val.push_back(str[offset]);
         }
         ++offset;
         String = val;

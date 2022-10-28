@@ -10,6 +10,7 @@ std::string json_escape(std::string s) noexcept
 #include "json.hpp"
 
 #include "another_toml.hpp"
+#include "string_util.hpp"
 
 using namespace std::string_view_literals;
 namespace toml = another_toml;
@@ -63,19 +64,7 @@ json::JSON stream_array(const toml::node&);
 template<bool R>
 void stream_table(json::JSON&, const toml::basic_node<R>&);
 
-namespace another_toml
-{
-	template<bool NoThrow, bool EscapeAllUnicode>
-	std::optional<std::string> to_escaped_string(const std::string& unicode);
-
-	extern template
-	std::optional<std::string> to_escaped_string<false, false>(const std::string& unicode);
-}
-
-std::string to_escaped_string(const std::string& u)
-{
-	return *toml::to_escaped_string<false, false>(u);
-}
+using toml::to_escaped_string;
 
 json::JSON stream_value(const toml::node& n)
 {
