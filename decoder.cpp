@@ -1,4 +1,4 @@
-﻿#include <array>
+#include <array>
 #include <iostream>
 #include <string_view>
 
