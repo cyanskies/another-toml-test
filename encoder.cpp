@@ -19,17 +19,13 @@ bool convert_json(const json::JSON& j);
 
 constexpr auto in_str = u8R"(
 {
-         "after": {
+         "longpi": {
            "type": "float",
-           "value": "3141.5927"
+           "value": "3.141592653589793"
          },
-         "before": {
+         "neglongpi": {
            "type": "float",
-           "value": "3141.5927"
-         },
-         "exponent": {
-           "type": "float",
-           "value": "3.0e14"
+           "value": "-3.141592653589793"
          }
        }
 )"sv;
@@ -59,12 +55,6 @@ int main()
 		return EXIT_FAILURE;
 	}
 }
-
-constexpr auto value_strings = std::array{
-	"string"sv, "integer"sv, "float"sv, "bool"sv,
-	"datetime"sv, "datetime-local"sv, "date-local"sv,
-	"time-local"sv, "unknown"sv, "bad"sv, "out-of-range"sv
-};
 
 using jtype = json::JSON::Class;
 
@@ -106,9 +96,9 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 		const auto ret = toml::parse_float_string(str);
 		assert(ret);
 		if (ret->representation == toml::writer::float_rep::scientific)
-			w.write_value(ret->value, toml::writer::float_rep::scientific);
+			w.write_value(ret->value, toml::writer::float_rep::scientific, 20);
 		else
-			w.write_value(ret->value);
+			w.write_value(ret->value, {}, 20);
 	}
 	else if (type == "bool"s)
 	{
@@ -182,48 +172,19 @@ bool parse_array(const json::JSON& a, toml::writer& w)
 // if true, arrays are probably arrays of tables
 // 
 // {}
-bool is_key(const json::JSON& t)
+bool is_key(const json::JSON& t) noexcept
 {
-	const auto children = t.ObjectRange();
-	/*if (std::distance(children.begin(), children.end()) != 2)
-		return false;*/
-
-	for (auto& [name, value] : children)
-	{
-		if (value.hasKey("type"s) &&
-			value.hasKey("value"s) &&
-			value.size() == 2)
-			return true;
-	}
-
-	return false;
+	return t.hasKey("type"s) &&
+		t.hasKey("value"s) &&
+		t.size() == 2;
 }
 
-bool has_child_keys(const json::JSON& t)
+bool is_table_array(const json::JSON& t)
 {
-	if (t.JSONType() == jtype::Array)
-	{
-		const auto children = t.ArrayRange();
-		for (auto& value : children)
-		{
-			if (is_key(value))
-				return true;
-			else if (has_child_keys(value))
-				return true;
-		}
-	}
-	else if(t.JSONType() == jtype::Object)
-	{
-		const auto children = t.ObjectRange();
-		for (auto& [name, value] : children)
-		{
-			if (is_key(value))
-				return true;
-			else if (has_child_keys(value))
-				return true;
-		}
-	}
-	return false;
+	const auto children = t.ArrayRange();
+	return std::all_of(begin(children), end(children), [](auto&& val) {
+		return val.JSONType() == jtype::Object && !is_key(val);
+		});
 }
 
 template<bool NoThrow>
@@ -237,7 +198,7 @@ bool parse_table(const json::JSON& t, toml::writer& w, toml::node_type parent_ty
 		{
 		case jtype::Array:
 		{
-			if (has_child_keys(value))
+			if (is_table_array(value))
 			{
 				const auto tables = value.ArrayRange();
 				for (auto& val : tables)
