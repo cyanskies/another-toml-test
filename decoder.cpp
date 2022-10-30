@@ -2,11 +2,6 @@
 #include <iostream>
 #include <string_view>
 
-std::string json_escape(std::string s) noexcept
-{
-		return s;
-}
-
 #include "json.hpp"
 
 #include "another_toml.hpp"
@@ -18,7 +13,11 @@ namespace toml = another_toml;
 void stream_to_json(std::ostream&, const toml::root_node&);
 
 constexpr auto str = u8R"(
-       "\u00c0" = "latin capital letter A with grave"
+best-day-ever = 1987-07-05T17:45:00Z
+
+       [numtheory]
+       boring = false
+       perfection = [6, 28, 496]
 )"sv;
 
 int main()
@@ -34,9 +33,7 @@ int main()
 			return EXIT_FAILURE;
 	#else
 		// use the string defined above as input
-		auto beg = reinterpret_cast<const char*>(&*str.begin());
-		auto end = beg + str.length();
-		auto toml_node = toml::parse({beg, end});
+		auto toml_node = toml::parse(str);
 	#endif
 		stream_to_json(std::cout, toml_node);
 		return EXIT_SUCCESS;
@@ -115,7 +112,7 @@ void stream_table(json::JSON& json, const toml::basic_node<Root>& n)
 		}
 		else if(basic_node.key())
 		{
-			auto val = stream_value(basic_node.get_child());
+			auto val = stream_value(basic_node.get_first_child());
 			json[to_escaped_string(basic_node.as_string())] = val;
 		}
 		else

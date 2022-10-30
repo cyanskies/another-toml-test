@@ -1,4 +1,5 @@
 #include <array>
+#include <charconv>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -19,13 +20,33 @@ bool convert_json(const json::JSON& j);
 
 constexpr auto in_str = u8R"(
 {
-         "longpi": {
-           "type": "float",
-           "value": "3.141592653589793"
+         "a": {
+           " x ": {},
+           "b": {
+             "c": {}
+           },
+           "b.c": {},
+           "d.e": {}
          },
-         "neglongpi": {
-           "type": "float",
-           "value": "-3.141592653589793"
+         "d": {
+           "e": {
+             "f": {}
+           }
+         },
+         "g": {
+           "h": {
+             "i": {}
+           }
+         },
+         "j": {
+           "ʞ": {
+             "l": {}
+           }
+         },
+         "x": {
+           "1": {
+             "2": {}
+           }
          }
        }
 )"sv;
@@ -94,11 +115,11 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 	{
 		const auto str = value.ToString();
 		const auto ret = toml::parse_float_string(str);
-		assert(ret);
-		if (ret->representation == toml::writer::float_rep::scientific)
-			w.write_value(ret->value, toml::writer::float_rep::scientific, 20);
+		assert(ret.error == toml::parse_float_string_return::error_t{});
+		if (ret.representation == toml::writer::float_rep::scientific)
+			w.write_value(ret.value, toml::writer::float_rep::scientific, 20);
 		else
-			w.write_value(ret->value, {}, 20);
+			w.write_value(ret.value, {}, 20);
 	}
 	else if (type == "bool"s)
 	{
