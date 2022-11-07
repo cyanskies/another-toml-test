@@ -18,35 +18,53 @@ namespace toml = another_toml;
 template<bool NoThrow>
 bool convert_json(const json::JSON& j);
 
+void make_file();
+
 constexpr auto in_str = u8R"(
-{
-         "a": {
-           " x ": {},
-           "b": {
-             "c": {}
-           },
-           "b.c": {},
-           "d.e": {}
+ {
+         "escaped": {
+           "type": "string",
+           "value": "lol\"\"\""
          },
-         "d": {
-           "e": {
-             "f": {}
-           }
+         "lit_one": {
+           "type": "string",
+           "value": "'one quote'"
          },
-         "g": {
-           "h": {
-             "i": {}
-           }
+         "lit_one_space": {
+           "type": "string",
+           "value": " 'one quote' "
          },
-         "j": {
-           "ʞ": {
-             "l": {}
-           }
+         "lit_two": {
+           "type": "string",
+           "value": "''two quotes''"
          },
-         "x": {
-           "1": {
-             "2": {}
-           }
+         "lit_two_space": {
+           "type": "string",
+           "value": " ''two quotes'' "
+         },
+         "mismatch1": {
+           "type": "string",
+           "value": "aaa'''bbb"
+         },
+         "mismatch2": {
+           "type": "string",
+           "value": "aaa\"\"\"bbb"
+         },
+         "one": {
+           "type": "string",
+           "value": "\"one quote\""
+         },
+         "one_space": {
+           "type": "string",
+           "value": " \"one quote\" "
+         },
+         "two": {
+           "type": "string",
+           "value": "\"\"two quotes\"\""
+         },
+         "two_space": {
+           "type": "string",
+           "value": " \"\"two quotes\"\" "
          }
        }
 )"sv;
@@ -56,11 +74,12 @@ int main()
 	try
 	{
 		auto str = std::string{};
-#if 1
+#if 0
 		auto sstream = std::stringstream{};
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
 #else
+		//make_file();
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
 		str = std::string{ beg, end };
@@ -116,8 +135,8 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 		const auto str = value.ToString();
 		const auto ret = toml::parse_float_string(str);
 		assert(ret.error == toml::parse_float_string_return::error_t{});
-		if (ret.representation == toml::writer::float_rep::scientific)
-			w.write_value(ret.value, toml::writer::float_rep::scientific, 20);
+		if (ret.representation == toml::float_rep::scientific)
+			w.write_value(ret.value, toml::float_rep::scientific, 20);
 		else
 			w.write_value(ret.value, {}, 20);
 	}
@@ -224,9 +243,9 @@ bool parse_table(const json::JSON& t, toml::writer& w, toml::node_type parent_ty
 				const auto tables = value.ArrayRange();
 				for (auto& val : tables)
 				{
-					w.begin_array_tables(name);
+					w.begin_array_table(name);
 					parse_table<false>(val, w, toml::node_type::array_tables);
-					w.end_array_tables();
+					w.end_array_table();
 				}
 			}
 			else
@@ -287,4 +306,88 @@ bool convert_json(const json::JSON& j)
 		return true;
 	}
 	return false;
+}
+
+void make_file()
+{
+	auto w = toml::writer{};
+
+	w.write_key("title");
+	w.write_value("TOML Example");
+
+	w.begin_table("owner");
+	w.write("name", "Tom Preston-Werner");
+	w.write("dob", toml::date_time{
+		toml::local_date_time{
+			toml::date{	1979, 5, 27	},
+			toml::time{ 7, 32 }
+		}, false, 8 });
+	w.end_table();
+
+	w.begin_table("database");
+	w.write("enabled", true);
+	w.begin_array("ports");
+	for(auto i = 5000; i < 6500; ++i)
+		w.write_value(i);
+	w.write_value(8001);
+	w.write_value(8002);
+	w.end_array();
+
+	w.begin_array("data");
+	//nested array
+	w.write({}, { "delta", "phi" });
+	w.begin_array({});
+	w.write_value(3.14f);
+	w.end_array();
+	w.end_array();
+
+	w.begin_inline_table("temp_targets");
+	w.write("cpu",79.5);
+	w.write("case", 72.f);
+	w.end_inline_table();
+
+	w.end_table();
+
+	w.begin_table("servers");
+
+	//nested table
+	w.begin_table("alpha");
+	w.write("ip", "10.0.0.1");
+	w.write("role", "frontend");
+	w.end_table();
+
+	w.begin_table("beta");
+	w.write("ip", "10.0.0.2");
+	w.write("role", "backend");
+	w.end_table();
+
+	w.end_table();
+
+	w.begin_array_table("products");
+	w.write("name", "Hammer");
+	w.write("sku", 738594937);
+	w.end_array_table();
+
+	w.begin_array_table("products");
+	w.end_array_table();
+
+	w.begin_array_table("products");
+	w.write("name", "Nail");
+	w.write("sku", 284758393);
+	w.write("color", "grey");
+	w.write("floatsdfdf", { 1.2f, 1.2f, 1.2f }, toml::float_rep::scientific);
+	
+	w.end_array_table();
+
+	auto opt = toml::writer_options{};
+	//opt.simple_numerical_output = true;
+	opt.ascii_output = true;
+	opt.compact_spacing = true;
+	opt.skip_empty_tables = false;
+	opt.utf8_bom = true;
+
+	w.set_options(opt);
+
+	std::cout << w;
+	auto toml_str = w.to_string();
 }

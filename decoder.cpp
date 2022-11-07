@@ -13,11 +13,17 @@ namespace toml = another_toml;
 void stream_to_json(std::ostream&, const toml::root_node&);
 
 constexpr auto str = u8R"(
-best-day-ever = 1987-07-05T17:45:00Z
+[[people]]
+       first_name = "Bruce"
+       last_name = "Springsteen"
 
-       [numtheory]
-       boring = false
-       perfection = [6, 28, 496]
+       [[people]]
+       first_name = "Eric"
+       last_name = "Clapton"
+
+       [[people]]
+       first_name = "Bob"
+       last_name = "Seger"
 )"sv;
 
 int main()
@@ -25,6 +31,7 @@ int main()
 	try
 	{
 	#if 1
+		std::ios_base::sync_with_stdio(false);
 		auto toml_node = toml::parse(std::cin);
 	#elif 0
 		// nothrow
@@ -78,6 +85,10 @@ json::JSON stream_value(const toml::node& n)
 	val["type"] = to_escaped_string(std::string{ value_to_string(n.type()) });
 	if (n.type() == toml::value_type::string)
 		val["value"] = to_escaped_string(n.as_string());
+	else if (n.type() == toml::value_type::integer)
+		val["value"] = n.as_string(toml::int_base::dec);
+	else if (n.type() == toml::value_type::floating_point)
+		val["value"] = n.as_string(toml::float_rep::fixed, 19);
 	else
 		val["value"] = n.as_string();
 
