@@ -8,8 +8,9 @@
 
 #include "json.hpp"
 
-#include "another_toml.hpp"
-#include "another_toml_string_util.hpp"
+#include "another_toml/except.hpp"
+#include "another_toml/string_util.hpp"
+#include "another_toml/writer.hpp"
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
@@ -74,12 +75,12 @@ int main()
 	try
 	{
 		auto str = std::string{};
-#if 0
+#if 1
 		auto sstream = std::stringstream{};
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
 #else
-		//make_file();
+		make_file();
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
 		str = std::string{ beg, end };
@@ -316,7 +317,7 @@ void make_file()
 	w.write_value("TOML Example");
 
 	w.begin_table("owner");
-	w.write("name", "Tom Preston-Werner");
+	w.write("name", "Tom Preston-Werner\'\'", toml::writer::literal_string_tag);
 	w.write("dob", toml::date_time{
 		toml::local_date_time{
 			toml::date{	1979, 5, 27	},
@@ -327,8 +328,6 @@ void make_file()
 	w.begin_table("database");
 	w.write("enabled", true);
 	w.begin_array("ports");
-	for(auto i = 5000; i < 6500; ++i)
-		w.write_value(i);
 	w.write_value(8001);
 	w.write_value(8002);
 	w.end_array();
@@ -356,9 +355,11 @@ void make_file()
 	w.write("role", "frontend");
 	w.end_table();
 
-	w.begin_table("beta");
+	w.begin_table("beta", toml::table_def_type::dotted);
+	w.begin_table("zeta", toml::table_def_type::dotted);
 	w.write("ip", "10.0.0.2");
-	w.write("role", "backend");
+	w.write("role", "df");
+	w.end_table();
 	w.end_table();
 
 	w.end_table();
@@ -386,8 +387,26 @@ void make_file()
 	opt.skip_empty_tables = false;
 	opt.utf8_bom = true;
 
-	w.set_options(opt);
+	//w.set_options(opt);
 
 	std::cout << w;
 	auto toml_str = w.to_string();
+
+	/*name = "Orange"
+		physical.color = "orange"
+		physical.shape = "round"
+		site."google.com" = true*/
+
+	w.write("name", "Orange");
+
+	w.begin_table("physical", toml::table_def_type::dotted);
+		w.write("color", "orange");
+		w.write("shape", "round");
+	w.end_table();
+
+	w.begin_table("site", toml::table_def_type::dotted);
+		w.write("google.com", true);
+	w.end_table();
+
+	return;
 }

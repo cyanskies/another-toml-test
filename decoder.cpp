@@ -1,11 +1,11 @@
-#include <array>
+﻿#include <array>
 #include <iostream>
 #include <string_view>
 
 #include "json.hpp"
 
-#include "another_toml.hpp"
-#include "another_toml_string_util.hpp"
+#include "another_toml/parser.hpp"
+#include "another_toml/string_util.hpp"
 
 using namespace std::string_view_literals;
 namespace toml = another_toml;
@@ -13,18 +13,16 @@ namespace toml = another_toml;
 void stream_to_json(std::ostream&, const toml::root_node&);
 
 constexpr auto str = u8R"(
-[[people]]
-       first_name = "Bruce"
-       last_name = "Springsteen"
-
-       [[people]]
-       first_name = "Eric"
-       last_name = "Clapton"
-
-       [[people]]
-       first_name = "Bob"
-       last_name = "Seger"
+str = "val\ue"
 )"sv;
+
+void read_toml(const toml::root_node& r)
+{
+	auto name = std::string{ "name" };
+	auto test = r["a"]["b.c"];
+	auto test2 = r[name]["first"];
+	auto test3 = r["arr"]["t"]["a"]["b"];
+}
 
 int main()
 {
@@ -38,15 +36,21 @@ int main()
 		auto toml_node = toml::parse(std::cin, toml::no_throw);
 		if (!toml_node.good())
 			return EXIT_FAILURE;
+	#elif 0
+		// use the string defined above as input
+		auto toml_node = toml::parse(str, toml::no_throw);
+		//read_toml(toml_node);
 	#else
 		// use the string defined above as input
 		auto toml_node = toml::parse(str);
+		//read_toml(toml_node);
 	#endif
 		stream_to_json(std::cout, toml_node);
 		return EXIT_SUCCESS;
 	}
-	catch (...)
+	catch (const std::exception& e)
 	{
+		std::cerr << e.what();
 		return EXIT_FAILURE;
 	}
 }
