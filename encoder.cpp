@@ -20,52 +20,25 @@ template<bool NoThrow>
 bool convert_json(const json::JSON& j);
 
 void make_file();
+void generate_huge_file();
 
 constexpr auto in_str = u8R"(
- {
-         "escaped": {
+  {
+         "escaped_string": {
            "type": "string",
-           "value": "lol\"\"\""
+           "value": "\u0000 \b \f A \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
          },
-         "lit_one": {
+         "not_escaped_string": {
            "type": "string",
-           "value": "'one quote'"
+           "value": "\u0000 \u0008 \u000c \U00000041 \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff"
          },
-         "lit_one_space": {
+         "basic_string": {
            "type": "string",
-           "value": " 'one quote' "
+           "value": "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
          },
-         "lit_two": {
+         "literal_string": {
            "type": "string",
-           "value": "''two quotes''"
-         },
-         "lit_two_space": {
-           "type": "string",
-           "value": " ''two quotes'' "
-         },
-         "mismatch1": {
-           "type": "string",
-           "value": "aaa'''bbb"
-         },
-         "mismatch2": {
-           "type": "string",
-           "value": "aaa\"\"\"bbb"
-         },
-         "one": {
-           "type": "string",
-           "value": "\"one quote\""
-         },
-         "one_space": {
-           "type": "string",
-           "value": " \"one quote\" "
-         },
-         "two": {
-           "type": "string",
-           "value": "\"\"two quotes\"\""
-         },
-         "two_space": {
-           "type": "string",
-           "value": " \"\"two quotes\"\" "
+           "value": "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
          }
        }
 )"sv;
@@ -79,11 +52,14 @@ int main()
 		auto sstream = std::stringstream{};
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
-#else
-		make_file();
+#elif 0
+		//make_file();
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
 		str = std::string{ beg, end };
+#else
+		generate_huge_file();
+		return EXIT_SUCCESS;
 #endif
 		const auto j = json::JSON::Load(str);
 		if (convert_json<false>(j))
@@ -91,10 +67,19 @@ int main()
 		else
 			return EXIT_FAILURE;
 	}
-	catch (...)
+	catch (const std::exception& e)
 	{
+		std::cout << e.what();
 		return EXIT_FAILURE;
 	}
+}
+
+static std::string lower_string(std::string_view v)
+{
+	auto s = std::string{};
+	s.reserve(size(v));
+	std::transform(begin(v), end(v), back_inserter(s), tolower);
+	return s;
 }
 
 using jtype = json::JSON::Class;
@@ -108,18 +93,18 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 	if (type == "string"s)
 	{
 		auto str = value.ToString();
-		try
-		{
+		//try
+		//{
 			// bad, we're using this to test whether
 			// str has invalid escape codes(using try/catch)
 			// should write a function for this
 			w.write_value(toml::to_unescaped_string(str));
-		}
-		catch (const toml::unicode_error&)
-		{
+		//}
+		//catch (const toml::unicode_error&)
+		//{
 			// invalid escape code(treat as literal string)
-			w.write_value(value.ToString(), toml::writer::literal_string_tag);
-		}
+		//	w.write_value(value.ToString(), toml::writer::literal_string_tag);
+		//}
 	}
 	else if (type == "integer"s)
 	{
@@ -133,7 +118,11 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 	}
 	else if (type == "float"s)
 	{
-		const auto str = value.ToString();
+		// NOTE: We lowercase the string because toml-test: tests/valid/spec/float-2.json
+		//		provides inv values as "+Inf" rather than "+inf", (possibly a bug in toml-test)
+		//		our api doesn't take floats as string anyway;
+		//		and valid toml files cannot store infinity in uppercase.
+		const auto str = lower_string(value.ToString());
 		const auto ret = toml::parse_float_string(str);
 		assert(ret.error == toml::parse_float_string_return::error_t{});
 		if (ret.representation == toml::float_rep::scientific)
@@ -302,8 +291,7 @@ bool convert_json(const json::JSON& j)
 	
 	if (parse_table<NoThrow>(j, writer))
 	{
-		auto str = writer.to_string();
-		std::cout << str;
+		std::cout << writer;
 		return true;
 	}
 	return false;
@@ -311,6 +299,21 @@ bool convert_json(const json::JSON& j)
 
 void make_file()
 {
+	auto g = toml::writer{};
+	g.begin_table("");
+	g.write("x", "empty.x");
+	g.end_table();
+	g.begin_table("x");
+	g.write("", "x.empty");
+	g.end_table();
+	g.begin_table("a");
+	g.begin_table("", toml::table_def_type::dotted);
+	g.write("''", "empty.empty");
+	g.end_table();
+	g.end_table();
+
+	std::cout << g;
+
 	auto w = toml::writer{};
 
 	w.write_key("title");
@@ -409,4 +412,61 @@ void make_file()
 	w.end_table();
 
 	return;
+}
+
+// should be some work for the parser
+// about 1kb of unicode
+constexpr auto unicode_str = u8"\u0000 \u0008 \u000c \u007f  \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff"sv;
+constexpr auto number = 1.000430343442f;
+
+constexpr auto  table_names = std::array{
+	"a", "b", "c", "d", "e", "f", "g", "h", "i"
+};
+
+constexpr auto str_names = std::array{
+	"j", "k", "l", "m", "n", "o", "p"
+};
+
+constexpr auto float_names = std::array{
+	"q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+};
+
+void write_elms(toml::writer& w)
+{
+	for (auto s : str_names)
+		w.write(s, unicode_str);
+
+	for (auto f : float_names)
+		w.write(f, number);
+
+	return;
+}
+
+// generate a large toml file using the encoder.
+void generate_huge_file()
+{
+	// the goal is to generate a 50mb file
+	auto w = toml::writer{};
+
+	for (auto t : table_names)
+	{
+		w.begin_table(t);
+		write_elms(w);
+		for (auto t2 : table_names)
+		{
+			w.begin_table(t2);
+			write_elms(w);
+			for (auto t3 : table_names)
+			{
+				w.begin_table(t3);
+				write_elms(w);
+				w.end_table();
+			}
+			w.end_table();
+		}
+		w.end_table();
+	}
+
+	auto f = std::ofstream{ std::filesystem::path{ "large.toml"s } };
+	f << w;
 }

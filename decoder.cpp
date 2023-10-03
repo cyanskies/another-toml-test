@@ -13,7 +13,14 @@ namespace toml = another_toml;
 void stream_to_json(std::ostream&, const toml::root_node&);
 
 constexpr auto str = u8R"(
-str = "val\ue"
+integers2 = [
+         1, 2, 3
+       ]
+
+       integers3 = [
+         1,
+         2, # this is ok
+       ]
 )"sv;
 
 void read_toml(const toml::root_node& r)
@@ -24,7 +31,7 @@ void read_toml(const toml::root_node& r)
 	auto test3 = r["arr"]["t"]["a"]["b"];
 }
 
-int main()
+int main(int argc, char** args)
 {
 	try
 	{
@@ -40,6 +47,9 @@ int main()
 		// use the string defined above as input
 		auto toml_node = toml::parse(str, toml::no_throw);
 		//read_toml(toml_node);
+	#elif 1
+		const auto file = std::filesystem::path{ "large.toml" };
+		auto toml_node = toml::parse(file);
 	#else
 		// use the string defined above as input
 		auto toml_node = toml::parse(str);
@@ -92,7 +102,7 @@ json::JSON stream_value(const toml::node& n)
 	else if (n.type() == toml::value_type::integer)
 		val["value"] = n.as_string(toml::int_base::dec);
 	else if (n.type() == toml::value_type::floating_point)
-		val["value"] = n.as_string(toml::float_rep::fixed, 19);
+		val["value"] = n.as_string(toml::float_rep::default, 19);
 	else
 		val["value"] = n.as_string();
 
