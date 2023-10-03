@@ -24,21 +24,25 @@ void generate_huge_file();
 
 constexpr auto in_str = u8R"(
   {
-         "escaped_string": {
+         "\u0000": {
            "type": "string",
-           "value": "\u0000 \b \f A \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
+           "value": "null"
          },
-         "not_escaped_string": {
+         "\\u0000": {
            "type": "string",
-           "value": "\u0000 \u0008 \u000c \U00000041 \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff"
+           "value": "different key"
          },
-         "basic_string": {
+         "\b \f A \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
            "type": "string",
-           "value": "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
+           "value": "escaped key"
          },
-         "literal_string": {
+         "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
            "type": "string",
-           "value": "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"
+           "value": "basic key"
+         },
+         "l ~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
+           "type": "string",
+           "value": "literal key"
          }
        }
 )"sv;
@@ -52,7 +56,7 @@ int main()
 		auto sstream = std::stringstream{};
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
-#elif 0
+#elif 1
 		//make_file();
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
@@ -82,6 +86,11 @@ static std::string lower_string(std::string_view v)
 	return s;
 }
 
+namespace another_toml
+{
+	std::string to_unescaped_string2(std::string_view str);
+}
+
 using jtype = json::JSON::Class;
 
 template<bool NoThrow>
@@ -93,18 +102,7 @@ bool parse_value(const json::JSON& v, toml::writer& w)
 	if (type == "string"s)
 	{
 		auto str = value.ToString();
-		//try
-		//{
-			// bad, we're using this to test whether
-			// str has invalid escape codes(using try/catch)
-			// should write a function for this
-			w.write_value(toml::to_unescaped_string(str));
-		//}
-		//catch (const toml::unicode_error&)
-		//{
-			// invalid escape code(treat as literal string)
-		//	w.write_value(value.ToString(), toml::writer::literal_string_tag);
-		//}
+		w.write_value(toml::to_unescaped_string2(str));
 	}
 	else if (type == "integer"s)
 	{
@@ -223,7 +221,7 @@ bool parse_table(const json::JSON& t, toml::writer& w, toml::node_type parent_ty
 	const auto children = t.ObjectRange();
 	for (auto& [raw_name, value] : children)
 	{
-		const auto name = toml::to_unescaped_string(raw_name);
+		const auto name = toml::to_unescaped_string2(raw_name);
 		switch (value.JSONType())
 		{
 		case jtype::Array:
