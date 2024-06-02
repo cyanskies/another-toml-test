@@ -24,27 +24,48 @@ void generate_huge_file();
 
 constexpr auto in_str = u8R"(
   {
-         "\u0000": {
-           "type": "string",
-           "value": "null"
-         },
-         "\\u0000": {
-           "type": "string",
-           "value": "different key"
-         },
-         "\b \f A \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
-           "type": "string",
-           "value": "escaped key"
-         },
-         "~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
-           "type": "string",
-           "value": "basic key"
-         },
-         "l ~ \u0080 \u00ff \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff": {
-           "type": "string",
-           "value": "literal key"
-         }
-       }
+    "title": {"type": "string", "value": "TOML Example"},
+    "clients": {
+        "data": [
+            [
+                {"type": "string", "value": "gamma"},
+                {"type": "string", "value": "delta"}
+            ],
+            [
+                {"type": "integer", "value": "1"},
+                {"type": "integer", "value": "2"}
+            ]
+        ],
+        "hosts": [
+            {"type": "string", "value": "alpha"},
+            {"type": "string", "value": "omega"}
+        ]
+    },
+    "database": {
+        "connection_max": {"type": "integer", "value": "5000"},
+        "enabled":        {"type": "bool", "value": "true"},
+        "server":         {"type": "string", "value": "192.168.1.1"},
+        "ports": [
+            {"type": "integer", "value": "8001"},
+            {"type": "integer", "value": "8001"},
+            {"type": "integer", "value": "8002"}
+        ]
+    },
+    "owner": {
+        "dob":  {"type": "datetime", "value": "1979-05-27T07:32:00-08:00"},
+        "name": {"type": "string", "value": "Lance Uppercut"}
+    },
+    "servers": {
+        "alpha": {
+            "dc": {"type": "string", "value": "eqdc10"},
+            "ip": {"type": "string", "value": "10.0.0.1"}
+        },
+        "beta": {
+            "dc": {"type": "string", "value": "eqdc10"},
+            "ip": {"type": "string", "value": "10.0.0.2"}
+        }
+    }
+}
 )"sv;
 
 int main()
@@ -57,12 +78,11 @@ int main()
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
 #elif 1
-		//make_file();
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
 		str = std::string{ beg, end };
 #else
-		generate_huge_file();
+		make_file();
 		return EXIT_SUCCESS;
 #endif
 		const auto j = json::JSON::Load(str);
@@ -200,16 +220,18 @@ bool parse_array(const json::JSON& a, toml::writer& w)
 // if true, arrays are probably arrays of tables
 // 
 // {}
-bool is_key(const json::JSON& t) noexcept
+static bool is_key(const json::JSON& t) noexcept
 {
 	return t.hasKey("type"s) &&
 		t.hasKey("value"s) &&
 		t.size() == 2;
 }
 
-bool is_table_array(const json::JSON& t)
+static bool is_table_array(const json::JSON& t)
 {
 	const auto children = t.ArrayRange();
+	if (begin(children) == end(children)) // catch empty arrays, these are probably not table arrays(but empty normal arrays)
+		return false;
 	return std::all_of(begin(children), end(children), [](auto&& val) {
 		return val.JSONType() == jtype::Object && !is_key(val);
 		});
@@ -286,7 +308,10 @@ bool convert_json(const json::JSON& j)
 {
 	assert(j.JSONType() == jtype::Object);
 	auto writer = toml::writer{};
-	
+	auto opts = toml::writer_options{};
+	opts.skip_empty_tables = false;
+	writer.set_options(opts);
+
 	if (parse_table<NoThrow>(j, writer))
 	{
 		std::cout << writer;
@@ -299,15 +324,10 @@ void make_file()
 {
 	auto g = toml::writer{};
 	g.begin_table("");
-	g.write("x", "empty.x");
-	g.end_table();
-	g.begin_table("x");
-	g.write("", "x.empty");
-	g.end_table();
-	g.begin_table("a");
-	g.begin_table("", toml::table_def_type::dotted);
-	g.write("''", "empty.empty");
-	g.end_table();
+	g.begin_array("x");
+	for (auto i = 0; i < 100; ++i)
+		g.write_value(i);
+	g.end_array();
 	g.end_table();
 
 	std::cout << g;

@@ -12,15 +12,10 @@ namespace toml = another_toml;
 
 void stream_to_json(std::ostream&, const toml::root_node&);
 
-constexpr auto str = u8R"(
-integers2 = [
-         1, 2, 3
-       ]
-
-       integers3 = [
-         1,
-         2, # this is ok
-       ]
+constexpr auto str = u8R"([a.b.c]
+answer = 42
+[a]
+better = 43
 )"sv;
 
 void read_toml(const toml::root_node& r)
@@ -43,7 +38,7 @@ int main(int argc, char** args)
 		auto toml_node = toml::parse(std::cin, toml::no_throw);
 		if (!toml_node.good())
 			return EXIT_FAILURE;
-	#elif 0
+	#elif 1
 		// use the string defined above as input
 		auto toml_node = toml::parse(str, toml::no_throw);
 		//read_toml(toml_node);
