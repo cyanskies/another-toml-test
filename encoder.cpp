@@ -77,7 +77,7 @@ int main()
 		auto sstream = std::stringstream{};
 		sstream << std::cin.rdbuf();
 		str = sstream.str();
-#elif 1
+#elif 0
 		auto beg = reinterpret_cast<const char*>(&*in_str.begin());
 		auto end = beg + in_str.length();
 		str = std::string{ beg, end };
@@ -323,11 +323,25 @@ bool convert_json(const json::JSON& j)
 void make_file()
 {
 	auto g = toml::writer{};
-	g.begin_table("");
+	g.begin_table("a");
+	g.write("junk", 5);
+	g.begin_table("a");
 	g.begin_array("x");
 	for (auto i = 0; i < 100; ++i)
 		g.write_value(i);
 	g.end_array();
+	g.write("long_string", "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
+	g.begin_table("b");
+	g.begin_table("long_dotted_table", toml::table_def_type::dotted);
+	g.write("another_long_string", "aaaaaaaaaaaaaaaaaaa\naaaaaaa aaaaaaaaaaaaaaaaaaaaa\naaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaa");
+	
+	g.end_table();
+	g.end_table();
+	g.end_table();
+	g.end_table();
+
+	g.begin_table("a");
+	g.write("thing", 500);
 	g.end_table();
 
 	std::cout << g;

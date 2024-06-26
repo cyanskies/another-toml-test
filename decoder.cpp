@@ -12,11 +12,7 @@ namespace toml = another_toml;
 
 void stream_to_json(std::ostream&, const toml::root_node&);
 
-constexpr auto str = u8R"([a.b.c]
-answer = 42
-[a]
-better = 43
-)"sv;
+constexpr auto str = u8"""\r"""sv;
 
 void read_toml(const toml::root_node& r)
 {
@@ -28,12 +24,14 @@ void read_toml(const toml::root_node& r)
 
 int main(int argc, char** args)
 {
+	auto toml_node = std::optional<toml::root_node>{};
+
 	try
 	{
-	#if 1
 		std::ios_base::sync_with_stdio(false);
-		auto toml_node = toml::parse(std::cin);
-	#elif 0
+	#if 1
+		toml_node = toml::parse(std::cin);
+	#elif 1
 		// nothrow
 		auto toml_node = toml::parse(std::cin, toml::no_throw);
 		if (!toml_node.good())
@@ -41,23 +39,38 @@ int main(int argc, char** args)
 	#elif 1
 		// use the string defined above as input
 		auto toml_node = toml::parse(str, toml::no_throw);
-		//read_toml(toml_node);
+		if (!toml_node.good())
+			return EXIT_FAILURE;
 	#elif 1
-		const auto file = std::filesystem::path{ "large.toml" };
+		const auto file = std::filesystem::path{ "bad-utf8-in-multiline.toml" };
 		auto toml_node = toml::parse(file);
 	#else
 		// use the string defined above as input
 		auto toml_node = toml::parse(str);
 		//read_toml(toml_node);
 	#endif
-		stream_to_json(std::cout, toml_node);
-		return EXIT_SUCCESS;
 	}
 	catch (const std::exception& e)
 	{
 		std::cerr << e.what();
 		return EXIT_FAILURE;
 	}
+
+	// seperate try block for json output
+	// this way we can return exit success for all json errors
+	//
+	// This exposes some invalid tests that didn't correctly return exit_failure
+	// because the error was triggered by the json outputter rather than another toml
+	try
+	{
+		stream_to_json(std::cout, *toml_node);
+	}
+	catch (const std::exception&)
+	{
+		std::cerr << "Error outputting JSON\n";
+	}
+
+	return EXIT_SUCCESS;
 }
 
 constexpr auto value_strings = std::array{
